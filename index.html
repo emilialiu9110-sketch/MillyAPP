@@ -8,10 +8,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
   <style>
     body {
       font-family: 'Nunito', 'Noto Sans TC', sans-serif;
@@ -34,7 +30,7 @@
       transform: translateY(3px);
     }
     .kawaii-btn:disabled {
-      opacity: 0.6;
+      opacity: 0.55;
       cursor: not-allowed;
     }
     .ssr-glow {
@@ -45,13 +41,11 @@
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="app"></div>
 
-  <script type="text/babel">
-    const { useState, useEffect, useMemo } = React;
-
+  <script>
     // --- 音效引擎 ---
-    const playSound = (type, enabled = true) => {
+    function playSound(type, enabled) {
       if (!enabled) return;
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -88,7 +82,7 @@
           gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
           osc.start(now);
           osc.stop(now + 0.45);
-        } else if (type === 'click') {
+        } else {
           osc.type = 'sine';
           osc.frequency.setValueAtTime(680, now);
           gain.gain.setValueAtTime(0.08, now);
@@ -97,175 +91,42 @@
           osc.stop(now + 0.08);
         }
       } catch (e) {}
-    };
+    }
 
-    // --- 語音朗讀 ---
-    const speakWord = (text) => {
+    function speakWord(text) {
       if (!('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'en-US';
       utter.rate = 0.92;
       window.speechSynthesis.speak(utter);
-    };
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
 
     // --- 預設學測單字庫 ---
     const INITIAL_WORDS = [
-      {
-        id: 'w1',
-        word: 'minority',
-        phonetic: '/maɪˈnɒr.ə.ti/',
-        pos: 'n.',
-        zh: '少數；少數民族',
-        enDef: 'The smaller number or part, especially a number or part representing less than half of the whole.',
-        example: 'Only a small minority of students disagreed with the new school policy.',
-        exampleZh: '只有極少數學生反對這項新的校規。',
-        note: '學測常考片語：in the minority（占少數）；反義字為 majority（多數）。'
-      },
-      {
-        id: 'w2',
-        word: 'property',
-        phonetic: '/ˈprɒp.ə.ti/',
-        pos: 'n.',
-        zh: '屬性；財產',
-        enDef: 'A thing or things belonging to someone; possessions collectively.',
-        example: 'Students are reminded not to leave their personal property unattended in the library.',
-        exampleZh: '提醒學生切勿將個人財物無人看管地留在圖書館內。',
-        note: '學測一字多義重點：除了「財產、房產」，在自然科閱讀測驗常作「物質的屬性、特性」。'
-      },
-      {
-        id: 'w3',
-        word: 'opportunity',
-        phonetic: '/ˌɒp.əˈtjuː.nə.ti/',
-        pos: 'n.',
-        zh: '機會；時機',
-        enDef: 'A set of circumstances that makes it possible to do something.',
-        example: 'Studying abroad offers a wonderful opportunity to experience different cultures.',
-        exampleZh: '出國留學提供了一個體驗不同文化的絕佳機會。',
-        note: '常見搭配：seize / take the opportunity to V（把握機會做…）。'
-      },
-      {
-        id: 'w4',
-        word: 'strength',
-        phonetic: '/streŋθ/',
-        pos: 'n.',
-        zh: '力量；優勢',
-        enDef: 'The quality or state of being physically strong, or a good quality or ability.',
-        example: 'Good communication is one of her greatest strengths as a team leader.',
-        exampleZh: '良好的溝通能力是她身為團隊領導者最大的優勢之一。',
-        note: '動詞變化為 strengthen（加強；鞏固）；學測作文常與 weakness（弱點）並用。'
-      },
-      {
-        id: 'w5',
-        word: 'urgent',
-        phonetic: '/ˈɜː.dʒənt/',
-        pos: 'adj.',
-        zh: '緊急的；迫切的',
-        enDef: 'Requiring immediate action or attention.',
-        example: 'The hospital is in urgent need of blood donations after the major accident.',
-        exampleZh: '這起重大事故發生後，醫院急需捐血。',
-        note: '常考片語：in urgent need of...（急需…）；名詞為 urgency。'
-      },
-      {
-        id: 'w6',
-        word: 'former',
-        phonetic: '/ˈfɔː.mər/',
-        pos: 'adj.',
-        zh: '前任的；前者',
-        enDef: 'Having previously been a particular thing; denoting the first of two.',
-        example: 'Between tea and coffee, I prefer the former because it helps me relax.',
-        exampleZh: '在茶和咖啡之間，我比較喜歡前者，因為它能幫助我放鬆。',
-        note: '學測閱讀指代題必考：the former（前者）vs. the latter（後者）。'
-      },
-      {
-        id: 'w7',
-        word: 'latter',
-        phonetic: '/ˈlæt.ər/',
-        pos: 'adj.',
-        zh: '後者；後半期的',
-        enDef: 'Denoting the second or second mentioned of two people or things.',
-        example: 'Both options sound reasonable, but the latter is much more cost-effective.',
-        exampleZh: '兩個選項聽起來都很合理，但後者划算得多。',
-        note: '注意拼法與 later（較晚的）不同，latter 有兩個 t。'
-      },
-      {
-        id: 'w8',
-        word: 'permit',
-        phonetic: '/pəˈmɪt/',
-        pos: 'v.',
-        zh: '允許；許可',
-        enDef: 'Officially allow someone to do something.',
-        example: 'Weather permitting, the graduation ceremony will be held outdoors tomorrow.',
-        exampleZh: '如果天氣允許，畢業典禮明天將在戶外舉行。',
-        note: '字典精準提醒：permit 本義為「允許；許可證」；若要表達「限制」請用 restrict / limit / prohibit！'
-      },
-      {
-        id: 'w9',
-        word: 'promise',
-        phonetic: '/ˈprɒm.ɪs/',
-        pos: 'v.',
-        zh: '保證；承諾',
-        enDef: 'Assure someone that one will definitely do something or that something will happen.',
-        example: 'She made a promise to review twenty English words every single day.',
-        exampleZh: '她承諾每天都要複習二十個英文單字。',
-        note: '形容詞 promising 意為「大有可為的；有前途的」（如 a promising student）。'
-      }
+      { id: 'w1', word: 'minority', phonetic: '/maɪˈnɒr.ə.ti/', pos: 'n.', zh: '少數；少數民族', enDef: 'The smaller number or part, representing less than half of the whole.', example: 'Only a small minority of students disagreed with the new school policy.', exampleZh: '只有極少數學生反對這項新的校規。', note: '學測常考片語：in the minority（占少數）；反義字為 majority（多數）。' },
+      { id: 'w2', word: 'property', phonetic: '/ˈprɒp.ə.ti/', pos: 'n.', zh: '屬性；財產', enDef: 'A thing or things belonging to someone; possessions collectively.', example: 'Students are reminded not to leave their personal property unattended in the library.', exampleZh: '提醒學生切勿將個人財物無人看管地留在圖書館內。', note: '學測一字多義重點：除了「財產、房產」，在自然科閱讀測驗常作「物質的屬性、特性」。' },
+      { id: 'w3', word: 'opportunity', phonetic: '/ˌɒp.əˈtjuː.nə.ti/', pos: 'n.', zh: '機會；時機', enDef: 'A set of circumstances that makes it possible to do something.', example: 'Studying abroad offers a wonderful opportunity to experience different cultures.', exampleZh: '出國留學提供了一個體驗不同文化的絕佳機會。', note: '常見搭配：seize / take the opportunity to V（把握機會做…）。' },
+      { id: 'w4', word: 'strength', phonetic: '/streŋθ/', pos: 'n.', zh: '力量；優勢', enDef: 'The quality or state of being physically strong, or a good quality or ability.', example: 'Good communication is one of her greatest strengths as a team leader.', exampleZh: '良好的溝通能力是她身為團隊領導者最大的優勢之一。', note: '動詞變化為 strengthen（加強；鞏固）；學測作文常與 weakness（弱點）並用。' },
+      { id: 'w5', word: 'urgent', phonetic: '/ˈɜː.dʒənt/', pos: 'adj.', zh: '緊急的；迫切的', enDef: 'Requiring immediate action or attention.', example: 'The hospital is in urgent need of blood donations after the major accident.', exampleZh: '這起重大事故發生後，醫院急需捐血。', note: '常考片語：in urgent need of...（急需…）；名詞為 urgency。' },
+      { id: 'w6', word: 'former', phonetic: '/ˈfɔː.mər/', pos: 'adj.', zh: '前任的；前者', enDef: 'Having previously been a particular thing; denoting the first of two.', example: 'Between tea and coffee, I prefer the former because it helps me relax.', exampleZh: '在茶和咖啡之間，我比較喜歡前者，因為它能幫助我放鬆。', note: '學測閱讀指代題必考：the former（前者）vs. the latter（後者）。' },
+      { id: 'w7', word: 'latter', phonetic: '/ˈlæt.ər/', pos: 'adj.', zh: '後者；後半期的', enDef: 'Denoting the second or second mentioned of two people or things.', example: 'Both options sound reasonable, but the latter is much more cost-effective.', exampleZh: '兩個選項聽起來都很合理，但後者划算得多。', note: '注意拼法與 later（較晚的）不同，latter 有兩個 t。' },
+      { id: 'w8', word: 'permit', phonetic: '/pəˈmɪt/', pos: 'v.', zh: '允許；許可', enDef: 'Officially allow someone to do something.', example: 'Weather permitting, the graduation ceremony will be held outdoors tomorrow.', exampleZh: '如果天氣允許，畢業典禮明天將在戶外舉行。', note: '字典精準提醒：permit 本義為「允許；許可證」；若要表達「限制」請用 restrict / limit / prohibit！' },
+      { id: 'w9', word: 'promise', phonetic: '/ˈprɒm.ɪs/', pos: 'v.', zh: '保證；承諾', enDef: 'Assure someone that one will definitely do something.', example: 'She made a promise to review twenty English words every single day.', exampleZh: '她承諾每天都要複習二十個英文單字。', note: '形容詞 promising 意為「大有可為的；有前途的」。' }
     ];
 
-    // --- 智慧解析單行輸入，將「純單字」「詞性」「純中文解釋」徹底分離 ---
-    const parseRawInputLine = (rawLine) => {
-      let line = rawLine.replace(/^[-*•\d.)\s]+/, '').trim();
-      if (!line) return null;
-
-      const wordMatch = line.match(/^([a-zA-Z-]+)\s*(.*)$/);
-      if (!wordMatch) return null;
-
-      const cleanWord = wordMatch[1].trim().toLowerCase();
-      let rest = wordMatch[2].trim();
-
-      let extractedPos = '';
-      const posRegex = /^[\[(]?(n\vert{}v\vert{}vt\vert{}vi\vert{}adj\vert{}adv\vert{}prep\vert{}conj\vert{}pron\vert{}int\vert{}phr\vert{}aux)\.?(?:\/(?:n\vert{}v\vert{}vt\vert{}vi\vert{}adj\vert{}adv\vert{}prep\vert{}conj\vert{}pron)\.?)?[\])]?\s*/i;
-      const posMatch = rest.match(posRegex);
-      if (posMatch) {
-        extractedPos = posMatch[0].replace(/[\[\]()]/g, '').trim();
-        if (!extractedPos.endsWith('.')) extractedPos += '.';
-        rest = rest.slice(posMatch[0].length).trim();
-      }
-
-      const cleanZh = rest.replace(/[:：]/g, '；').trim() || '（待補充中文）';
-
-      return {
-        word: cleanWord,
-        pos: extractedPos,
-        zh: cleanZh
-      };
-    };
-
-    // --- 推算原形以便從官方字典抓真實例句 ---
-    const getBaseWordCandidates = (word) => {
-      const candidates = [word];
-      if (word.endsWith('ied') && word.length > 4) candidates.push(word.slice(0, -3) + 'y');
-      if (word.endsWith('ed') && word.length > 3) {
-        candidates.push(word.slice(0, -2));
-        candidates.push(word.slice(0, -1));
-        if (word.length > 4 && word[word.length - 3] === word[word.length - 4]) {
-          candidates.push(word.slice(0, -3));
-        }
-      }
-      if (word.endsWith('ing') && word.length > 4) {
-        candidates.push(word.slice(0, -3));
-        candidates.push(word.slice(0, -3) + 'e');
-      }
-      if (word.endsWith('ies') && word.length > 4) candidates.push(word.slice(0, -3) + 'y');
-      if (word.endsWith('s') && !word.endsWith('ss') && word.length > 3) candidates.push(word.slice(0, -1));
-      return [...new Set(candidates)];
-    };
-
-    // --- 扭蛋角色與書房家具圖鑑 ---
     const GACHA_POOL = [
-      { id: 'c_owl', type: 'partner', rarity: 'SSR', name: '皇家貓頭鷹博士', emoji: '🦉', skillName: '學測智慧之眼', skillDesc: '答對額外 +25% 餅乾幣，文意選填自動高亮線索！', cookieBonus: 0.25, passiveType: 'hint_boost' },
+      { id: 'c_owl', type: 'partner', rarity: 'SSR', name: '皇家貓頭鷹博士', emoji: '🦉', skillName: '學測智慧之眼', skillDesc: '答對額外 +25% 餅乾幣！', cookieBonus: 0.25, passiveType: 'hint_boost' },
       { id: 'c_shiba', type: 'partner', rarity: 'SSR', name: '黃金學霸柴犬・豆豆', emoji: '🐕', skillName: '不屈守護護盾', skillDesc: '答錯時 35% 機率發動「汪汪護盾」免扣血且保留連擊！', cookieBonus: 0.20, passiveType: 'shield_chance' },
-      { id: 'c_cat', type: 'partner', rarity: 'SR', name: '焦糖布丁波斯貓', emoji: '🐈', skillName: '甜點連擊狂熱', skillDesc: '連擊獎勵分數 +30%，答對額外 +15% 餅乾幣', cookieBonus: 0.15, passiveType: 'combo_boost' },
+      { id: 'c_cat', type: 'partner', rarity: 'SR', name: '焦糖布丁波斯貓', emoji: '🐈', skillName: '甜點連擊狂熱', skillDesc: '答對額外 +15% 餅乾幣', cookieBonus: 0.15, passiveType: 'combo_boost' },
       { id: 'c_bunny', type: 'partner', rarity: 'SR', name: '草莓大福垂耳兔', emoji: '🐇', skillName: '幸運星願收集', skillDesc: '每答對 5 題額外掉落 2 顆星願鑽石', cookieBonus: 0.12, passiveType: 'gem_finder' },
       { id: 'f_fountain', type: 'furniture', rarity: 'SR', name: '巧克力噴泉書桌', emoji: '⛲', skillName: '書房豪華家具', skillDesc: '書房掛機每分鐘 +12 餅乾幣', idleRate: 12 },
       { id: 'c_bear', type: 'partner', rarity: 'R', name: '蜂蜜鬆餅小棕熊', emoji: '🐻', skillName: '元氣滿滿', skillDesc: '答對額外 +10% 餅乾幣', cookieBonus: 0.10, passiveType: 'cookie_up' },
@@ -289,313 +150,234 @@
       { name: '學測單字大魔王', emoji: '🐉', maxHp: 220, rewardCookies: 380, rewardGems: 45 }
     ];
 
-    function App() {
-      const [words, setWords] = useState(() => {
-        try {
-          const saved = localStorage.getItem('gsat_cookie_words_v5');
-          return saved ? JSON.parse(saved) : INITIAL_WORDS;
-        } catch { return INITIAL_WORDS; }
-      });
+    // --- 狀態管理 ---
+    let words = JSON.parse(localStorage.getItem('milly_words_v1') || 'null') || INITIAL_WORDS;
+    let profile = JSON.parse(localStorage.getItem('milly_profile_v1') || 'null') || {
+      cookies: 450,
+      gems: 320,
+      shards: 15,
+      xp: 0,
+      level: 1,
+      pityCount: 0,
+      equippedPartnerId: 'c_chick',
+      ownedItems: { c_chick: { stars: 1, level: 1 }, f_plant: { stars: 1, level: 1 } },
+      items: { hint5050: 2, shield: 1, doubleCookie: 1 },
+      stageStars: {},
+      dailyAnswered: 0,
+      dailyCloze: 0,
+      dailyGacha: 0,
+      claimedTasks: {},
+      lastIdleClaim: Date.now()
+    };
 
-      const [profile, setProfile] = useState(() => {
-        try {
-          const saved = localStorage.getItem('gsat_cookie_profile_v5');
-          return saved ? JSON.parse(saved) : {
-            cookies: 450,
-            gems: 320,
-            shards: 15,
-            xp: 0,
-            level: 1,
-            pityCount: 0,
-            equippedPartnerId: 'c_chick',
-            ownedItems: {
-              'c_chick': { stars: 1, level: 1 },
-              'f_plant': { stars: 1, level: 1 }
-            },
-            items: {
-              hint5050: 2,
-              shield: 1,
-              doubleCookie: 1
-            },
-            stageStars: {},
-            dailyAnswered: 0,
-            dailyCloze: 0,
-            dailyGacha: 0,
-            claimedTasks: {},
-            lastIdleClaim: Date.now()
-          };
-        } catch {
-          return {
-            cookies: 450, gems: 320, shards: 15, xp: 0, level: 1, pityCount: 0,
-            equippedPartnerId: 'c_chick',
-            ownedItems: { 'c_chick': { stars: 1, level: 1 }, 'f_plant': { stars: 1, level: 1 } },
-            items: { hint5050: 2, shield: 1, doubleCookie: 1 },
-            stageStars: {}, dailyAnswered: 0, dailyCloze: 0, dailyGacha: 0,
-            claimedTasks: {}, lastIdleClaim: Date.now()
-          };
+    function saveAll() {
+      localStorage.setItem('milly_words_v1', JSON.stringify(words));
+      localStorage.setItem('milly_profile_v1', JSON.stringify(profile));
+    }
+
+    let state = {
+      activeTab: 'quiz',
+      soundOn: true,
+      toastMsg: '',
+      quizMode: 'mixed',
+      clozeInputType: 'choice',
+      currentQ: null,
+      selectedOption: null,
+      typedAnswer: '',
+      isAnswered: false,
+      isCorrect: false,
+      combo: 0,
+      eliminatedOptions: [],
+      activeShield: false,
+      activeStage: null,
+      stageProgress: { current: 0, correct: 0 },
+      stageCompleteModal: null,
+      blitzRunning: false,
+      blitzTime: 60,
+      blitzScore: 0,
+      blitzSummary: null,
+      monsterIdx: 0,
+      monsterHp: MONSTERS[0].maxHp,
+      playerHearts: 3,
+      battleLog: '準備好挑戰單字大魔王了嗎？',
+      gachaResults: null,
+      bulkText: `- minority 少數\n- property 屬性:財產\n- opportunity 機會\n- strength 力量\n- urgent 緊急\n- former 前任的\n- latter 後者\n- permit 限制\n- promise 保證`,
+      isImporting: false
+    };
+
+    let toastTimer = null;
+    function showToast(msg) {
+      state.toastMsg = msg;
+      render();
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        state.toastMsg = '';
+        render();
+      }, 2800);
+    }
+
+    function parseRawInputLine(rawLine) {
+      let line = rawLine.replace(/^[-*•\d.)\s]+/, '').trim();
+      if (!line) return null;
+      const wordMatch = line.match(/^([a-zA-Z-]+)\s*(.*)$/);
+      if (!wordMatch) return null;
+      const cleanWord = wordMatch[1].trim().toLowerCase();
+      let rest = wordMatch[2].trim();
+      let extractedPos = '';
+      const posRegex = /^[\[(]?(n\vert{}v\vert{}vt\vert{}vi\vert{}adj\vert{}adv\vert{}prep\vert{}conj\vert{}pron\vert{}int\vert{}phr\vert{}aux)\.?(?:\/(?:n\vert{}v\vert{}vt\vert{}vi\vert{}adj\vert{}adv\vert{}prep\vert{}conj\vert{}pron)\.?)?[\])]?\s*/i;
+      const posMatch = rest.match(posRegex);
+      if (posMatch) {
+        extractedPos = posMatch[0].replace(/[\[\]()]/g, '').trim();
+        if (!extractedPos.endsWith('.')) extractedPos += '.';
+        rest = rest.slice(posMatch[0].length).trim();
+      }
+      const cleanZh = rest.replace(/[:：]/g, '；').trim() || '（待補充中文）';
+      return { word: cleanWord, pos: extractedPos, zh: cleanZh };
+    }
+
+    function getBaseWordCandidates(word) {
+      const candidates = [word];
+      if (word.endsWith('ied') && word.length > 4) candidates.push(word.slice(0, -3) + 'y');
+      if (word.endsWith('ed') && word.length > 3) {
+        candidates.push(word.slice(0, -2));
+        candidates.push(word.slice(0, -1));
+        if (word.length > 4 && word[word.length - 3] === word[word.length - 4]) {
+          candidates.push(word.slice(0, -3));
         }
-      });
+      }
+      if (word.endsWith('ing') && word.length > 4) {
+        candidates.push(word.slice(0, -3));
+        candidates.push(word.slice(0, -3) + 'e');
+      }
+      if (word.endsWith('ies') && word.length > 4) candidates.push(word.slice(0, -3) + 'y');
+      if (word.endsWith('s') && !word.endsWith('ss') && word.length > 3) candidates.push(word.slice(0, -1));
+      return [...new Set(candidates)];
+    }
 
-      useEffect(() => {
-        localStorage.setItem('gsat_cookie_words_v5', JSON.stringify(words));
-      }, [words]);
+    function generateQuestion(overrideMode) {
+      if (!words || words.length === 0) return;
+      const targetWord = words[Math.floor(Math.random() * words.length)];
+      const effectiveMode = overrideMode || state.quizMode;
 
-      useEffect(() => {
-        localStorage.setItem('gsat_cookie_profile_v5', JSON.stringify(profile));
-      }, [profile]);
+      let qType = effectiveMode;
+      if (effectiveMode === 'mixed') {
+        const pool = ['en_to_zh', 'zh_to_en', 'cloze'];
+        qType = pool[Math.floor(Math.random() * pool.length)];
+      } else if (effectiveMode === 'mixed_choice') {
+        qType = Math.random() < 0.5 ? 'en_to_zh' : 'zh_to_en';
+      }
 
-      const [activeTab, setActiveTab] = useState('quiz');
-      const [soundOn, setSoundOn] = useState(true);
-      const [toastMsg, setToastMsg] = useState(null);
+      const distractors = [...words]
+        .filter(w => w.id !== targetWord.id)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3);
 
-      // 測驗題型：mixed / en_to_zh / zh_to_en / cloze
-      const [quizMode, setQuizMode] = useState('mixed');
-      const [clozeInputType, setClozeInputType] = useState('choice');
-      const [currentQ, setCurrentQ] = useState(null);
-      const [selectedOption, setSelectedOption] = useState(null);
-      const [typedAnswer, setTypedAnswer] = useState('');
-      const [isAnswered, setIsAnswered] = useState(false);
-      const [isCorrect, setIsCorrect] = useState(false);
-      const [combo, setCombo] = useState(0);
-      const [eliminatedOptions, setEliminatedOptions] = useState([]);
-      const [activeShield, setActiveShield] = useState(false);
-      const [doubleCookieActive, setDoubleCookieActive] = useState(false);
+      const fallback = [
+        { id: 'f1', word: 'abandon', zh: '放棄；遺棄' },
+        { id: 'f2', word: 'benefit', zh: '利益；好處' },
+        { id: 'f3', word: 'crucial', zh: '關鍵的；極重要的' }
+      ];
+      while (distractors.length < 3) {
+        distractors.push(fallback[distractors.length]);
+      }
 
-      const [activeStage, setActiveStage] = useState(null);
-      const [stageProgress, setStageProgress] = useState({ current: 0, correct: 0 });
-      const [stageCompleteModal, setStageCompleteModal] = useState(null);
+      const rawOptions = [targetWord, ...distractors].sort(() => Math.random() - 0.5);
+      const options = rawOptions.map(o => ({
+        id: o.id,
+        label: qType === 'en_to_zh' ? o.zh : o.word,
+        isCorrect: o.id === targetWord.id
+      }));
 
-      const [blitzRunning, setBlitzRunning] = useState(false);
-      const [blitzTime, setBlitzTime] = useState(60);
-      const [blitzScore, setBlitzScore] = useState(0);
-      const [blitzSummary, setBlitzSummary] = useState(null);
+      const candidates = getBaseWordCandidates(targetWord.word);
+      let clozeSentence = targetWord.example;
+      let replaced = false;
+      for (const cand of candidates) {
+        const regex = new RegExp(`\\b${cand}[a-z]*\\b`, 'i');
+        if (regex.test(clozeSentence)) {
+          clozeSentence = clozeSentence.replace(regex, '________');
+          replaced = true;
+          break;
+        }
+      }
+      if (!replaced) {
+        clozeSentence = `${targetWord.example} (Fill in: ________)`;
+      }
 
-      const [monsterIdx, setMonsterIdx] = useState(0);
-      const [monsterHp, setMonsterHp] = useState(MONSTERS[0].maxHp);
-      const [playerHearts, setPlayerHearts] = useState(3);
-      const [battleLog, setBattleLog] = useState('準備好挑戰單字大魔王了嗎？');
+      state.currentQ = { qType, wordObj: targetWord, options, clozeSentence };
+      state.selectedOption = null;
+      state.typedAnswer = '';
+      state.isAnswered = false;
+      state.isCorrect = false;
+      state.eliminatedOptions = [];
+    }
 
-      const [gachaResults, setGachaResults] = useState(null);
+    function handleAnswer(chosenLabel, isManualTyping) {
+      if (state.isAnswered || !state.currentQ) return;
+      let correct = false;
+      if (isManualTyping) {
+        correct = chosenLabel.trim().toLowerCase() === state.currentQ.wordObj.word.toLowerCase();
+      } else {
+        const opt = state.currentQ.options.find(o => o.label === chosenLabel);
+        correct = opt ? opt.isCorrect : false;
+      }
 
-      const [bulkText, setBulkText] = useState(
-`- minority 少數
-- property 屬性:財產
-- opportunity 機會
-- strength 力量
-- urgent 緊急
-- former 前任的
-- latter 後者
-- permit 限制
-- promise 保證`
-      );
-      const [isImporting, setIsImporting] = useState(false);
+      state.selectedOption = chosenLabel;
+      state.isAnswered = true;
+      state.isCorrect = correct;
 
-      const showToast = (msg) => {
-        setToastMsg(msg);
-        setTimeout(() => setToastMsg(null), 2800);
-      };
+      const partner = GACHA_POOL.find(i => i.id === profile.equippedPartnerId) || GACHA_POOL[8];
+      const pState = profile.ownedItems[partner.id] || { stars: 1, level: 1 };
 
-      const equippedPartner = useMemo(() => {
-        return GACHA_POOL.find(item => item.id === profile.equippedPartnerId) || GACHA_POOL[8];
-      }, [profile.equippedPartnerId]);
+      if (correct) {
+        playSound('correct', state.soundOn);
+        speakWord(state.currentQ.wordObj.word);
+        state.combo += 1;
 
-      const partnerState = profile.ownedItems[equippedPartner.id] || { stars: 1, level: 1 };
+        const bonus = 1 + (partner.cookieBonus || 0) + (pState.level - 1) * 0.02;
+        const gainedCookies = Math.round((15 + Math.min(state.combo * 2, 20)) * bonus);
+        let gainedGems = 0;
+        if (partner.passiveType === 'gem_finder' && state.combo % 5 === 0) {
+          gainedGems = 2;
+          showToast('🐇 垂耳兔技能發動！額外獲得 💎 2 鑽石！');
+        }
 
-      const idleCookiesPerMin = useMemo(() => {
-        let base = 5;
-        Object.keys(profile.ownedItems).forEach(id => {
-          const item = GACHA_POOL.find(g => g.id === id);
-          if (item && item.type === 'furniture') {
-            base += item.idleRate * (profile.ownedItems[id].stars || 1);
+        profile.cookies += gainedCookies;
+        profile.gems += gainedGems;
+        profile.xp += 20;
+        profile.level = Math.floor(profile.xp / 200) + 1;
+        profile.dailyAnswered += 1;
+        if (state.currentQ.qType === 'cloze') profile.dailyCloze += 1;
+
+        if (state.activeTab === 'blitz' && state.blitzRunning) {
+          state.blitzScore += 1;
+          if (state.combo % 3 === 0) {
+            state.blitzTime += 3;
+            showToast('🔥 FEVER 連擊！時間 +3 秒！');
           }
-        });
-        return base;
-      }, [profile.ownedItems]);
-
-      // --- 產生題目邏輯 ---
-      const generateQuestion = (overrideMode = null) => {
-        if (!words || words.length === 0) return;
-        const targetWord = words[Math.floor(Math.random() * words.length)];
-        const effectiveMode = overrideMode || quizMode;
-
-        let qType = effectiveMode;
-        if (effectiveMode === 'mixed') {
-          const pool = ['en_to_zh', 'zh_to_en', 'cloze'];
-          qType = pool[Math.floor(Math.random() * pool.length)];
-        } else if (effectiveMode === 'mixed_choice') {
-          qType = Math.random() < 0.5 ? 'en_to_zh' : 'zh_to_en';
+          setTimeout(() => {
+            generateQuestion('mixed_choice');
+            render();
+          }, 420);
         }
 
-        const distractors = [...words]
-          .filter(w => w.id !== targetWord.id)
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 3);
-
-        const fallbackDistractors = [
-          { id: 'f1', word: 'abandon', zh: '放棄；遺棄' },
-          { id: 'f2', word: 'benefit', zh: '利益；好處' },
-          { id: 'f3', word: 'crucial', zh: '關鍵的；極重要的' }
-        ];
-        while (distractors.length < 3) {
-          distractors.push(fallbackDistractors[distractors.length]);
-        }
-
-        const rawOptions = [targetWord, ...distractors].sort(() => Math.random() - 0.5);
-
-        let options = [];
-        if (qType === 'en_to_zh') {
-          options = rawOptions.map(o => ({
-            id: o.id,
-            label: o.zh,
-            isCorrect: o.id === targetWord.id
-          }));
-        } else {
-          options = rawOptions.map(o => ({
-            id: o.id,
-            label: o.word,
-            isCorrect: o.id === targetWord.id
-          }));
-        }
-
-        const candidates = getBaseWordCandidates(targetWord.word);
-        let clozeSentence = targetWord.example;
-        let replaced = false;
-        for (const cand of candidates) {
-          const regex = new RegExp(`\\b${cand}[a-z]*\\b`, 'i');
-          if (regex.test(clozeSentence)) {
-            clozeSentence = clozeSentence.replace(regex, '________');
-            replaced = true;
-            break;
+        if (state.activeTab === 'adventure' && state.activeStage) {
+          state.stageProgress.current += 1;
+          state.stageProgress.correct += 1;
+          if (state.stageProgress.current >= state.activeStage.count) {
+            finishStage();
           }
         }
-        if (!replaced) {
-          clozeSentence = `${targetWord.example} (Fill in: ________)`;
-        }
 
-        setCurrentQ({
-          qType,
-          wordObj: targetWord,
-          options,
-          clozeSentence
-        });
-        setSelectedOption(null);
-        setTypedAnswer('');
-        setIsAnswered(false);
-        setIsCorrect(false);
-        setEliminatedOptions([]);
-      };
-
-      useEffect(() => {
-        if (!currentQ && words.length > 0) {
-          generateQuestion();
-        }
-      }, [words]);
-
-      useEffect(() => {
-        if (!blitzRunning) return;
-        const timer = setInterval(() => {
-          setBlitzTime(prev => {
-            if (prev <= 1) {
-              clearInterval(timer);
-              setBlitzRunning(false);
-              const earnedCookies = blitzScore * 12;
-              const earnedGems = Math.floor(blitzScore / 3) * 5;
-              setProfile(p => ({
-                ...p,
-                cookies: p.cookies + earnedCookies,
-                gems: p.gems + earnedGems
-              }));
-              setBlitzSummary({ score: blitzScore, cookies: earnedCookies, gems: earnedGems });
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-        return () => clearInterval(timer);
-      }, [blitzRunning, blitzScore]);
-
-      const handleAnswer = (chosenLabel, isManualTyping = false) => {
-        if (isAnswered || !currentQ) return;
-
-        let correct = false;
-        if (isManualTyping) {
-          correct = chosenLabel.trim().toLowerCase() === currentQ.wordObj.word.toLowerCase();
-        } else {
-          const opt = currentQ.options.find(o => o.label === chosenLabel);
-          correct = opt ? opt.isCorrect : false;
-        }
-
-        setSelectedOption(chosenLabel);
-        setIsAnswered(true);
-        setIsCorrect(correct);
-
-        if (correct) {
-          playSound('correct', soundOn);
-          speakWord(currentQ.wordObj.word);
-          const newCombo = combo + 1;
-          setCombo(newCombo);
-
-          const levelBonus = (partnerState.level - 1) * 0.02;
-          const totalBonus = 1 + (equippedPartner.cookieBonus || 0) + levelBonus;
-          let gainedCookies = Math.round((15 + Math.min(newCombo * 2, 20)) * totalBonus);
-          if (doubleCookieActive) {
-            gainedCookies *= 2;
-            setDoubleCookieActive(false);
-          }
-
-          let gainedGems = 0;
-          if (equippedPartner.passiveType === 'gem_finder' && newCombo % 5 === 0) {
-            gainedGems = 2;
-            showToast('🐇 垂耳兔技能發動！額外獲得 💎 2 鑽石！');
-          }
-
-          setProfile(p => {
-            const newXp = p.xp + 20;
-            const newLevel = Math.floor(newXp / 200) + 1;
-            return {
-              ...p,
-              cookies: p.cookies + gainedCookies,
-              gems: p.gems + gainedGems,
-              xp: newXp,
-              level: newLevel,
-              dailyAnswered: p.dailyAnswered + 1,
-              dailyCloze: currentQ.qType === 'cloze' ? p.dailyCloze + 1 : p.dailyCloze
-            };
-          });
-
-          if (activeTab === 'blitz' && blitzRunning) {
-            setBlitzScore(s => s + 1);
-            if (newCombo % 3 === 0) {
-              setBlitzTime(t => t + 3);
-              showToast('🔥 FEVER 連擊！時間 +3 秒！');
-            }
-            setTimeout(() => generateQuestion('mixed_choice'), 450);
-          }
-
-          if (activeTab === 'adventure' && activeStage) {
-            const nextCur = stageProgress.current + 1;
-            const nextCor = stageProgress.correct + 1;
-            setStageProgress({ current: nextCur, correct: nextCor });
-            if (nextCur >= activeStage.count) {
-              finishStage(nextCor);
-            }
-          }
-
-          if (activeTab === 'boss') {
-            const dmg = 35 + Math.min(newCombo * 8, 40) + (partnerState.level * 2);
-            const nextHp = Math.max(0, monsterHp - dmg);
-            setMonsterHp(nextHp);
-            setBattleLog(`⚔️ 造成 ${dmg} 點暴擊傷害！`);
-            if (nextHp === 0) {
-              const m = MONSTERS[monsterIdx];
-              setProfile(p => ({
-                ...p,
-                cookies: p.cookies + m.rewardCookies,
-                gems: p.gems + m.rewardGems
-              }));
-              showToast(`🎉 擊敗 ${m.name}！獲得 🍪${m.rewardCookies} 與 💎${m.rewardGems}！`);
-              const nextIdx = (monsterIdx + 1) % MONSTERS.length;
-              setTimeout(() => {
-                setMonsterIdx(nextIdx);
-                setMonsterHp(MONSTERS[nextIdx].maxHp);
-                setPlayer
+        if (state.activeTab === 'boss') {
+          const dmg = 35 + Math.min(state.combo * 8, 40) + (pState.level * 2);
+          state.monsterHp = Math.max(0, state.monsterHp - dmg);
+          state.battleLog = `⚔️ 造成 ${dmg} 點暴擊傷害！`;
+          if (state.monsterHp === 0) {
+            const m = MONSTERS[state.monsterIdx];
+            profile.cookies += m.rewardCookies;
+            profile.gems += m.rewardGems;
+            showToast(`🎉 擊敗 ${m.name}！獲得 🍪${m.rewardCookies} 與 💎${m.rewardGems}！`);
+            setTimeout(() => {
+              state.monsterIdx = (state.monsterIdx + 1) % MONSTERS.length;
+              state.monsterHp = MONSTERS[state.monsterIdx].maxHp;
+              state.playerHearts = 3;
